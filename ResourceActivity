@@ -20,11 +20,6 @@ sealed class Resource<T>(
     class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
 }
 
-enum class Status {
-    SUCCESS,
-    ERROR,
-    LOADING
-}
 
 class ResourceActivity : AppCompatActivity(){
     data class People(val name:String, val age:Int)
@@ -83,6 +78,7 @@ class ResourceActivity : AppCompatActivity(){
             suspend fun getPeople(name:String): Resource<People>? = withContext(Dispatchers.Default){
                 delay(5000)
                 var response:Resource<People>? = null
+
                 if(name == "joao"){
                     response = Resource.Success(People("Joao", 13))
                 }else{
