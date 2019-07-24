@@ -1,0 +1,95 @@
+package com.example.game
+
+import android.os.Bundle
+import android.widget.Button
+import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.lifecycle.*
+import com.example.game.snake.utils.logT
+import kotlinx.android.synthetic.main.activity_plug_test.*
+import kotlinx.coroutines.*
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import kotlin.coroutines.coroutineContext
+
+sealed class Resource<T>(
+    val data: T? = null,
+    val message: String? = null
+) {
+    class Success<T>(data: T) : Resource<T>(data)
+    class Loading<T>() : Resource<T>()
+    class Error<T>(message: String, data: T? = null) : Resource<T>(data, message)
+}
+
+enum class Status {
+    SUCCESS,
+    ERROR,
+    LOADING
+}
+
+class ResourceActivity : AppCompatActivity(){
+    data class People(val name:String, val age:Int)
+    private val viewModel by viewModel<ViewModelTraining>()
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_plug_test)
+        val bt = Button(this)
+        rootView.addView(bt)
+        bt.setOnClickListener {
+            viewModel.fetchData()
+        }
+        viewModel.mutableLiveData().observe(this, Observer {
+            verifyResponse(it)
+        })
+    }
+
+    private fun verifyResponse(response: Resource<People>) = when(response){
+        is Resource.Loading->logT("loading")
+        is Resource.Error-> logT("Error : ${response.message}")
+        is Resource.Success-> logT("Error : ${response.data?.name}")
+    }
+
+
+    class ViewModelTraining: ViewModel() {
+        private var _mutableLiveData: MediatorLiveData<Resource<People>> = MediatorLiveData()
+        fun mutableLiveData() : LiveData<Resource<People>> = _mutableLiveData
+
+        init {
+        }
+
+        fun fetchData(){
+            viewModelScope.launch {
+                _mutableLiveData.value = Resource.Loading()
+                _mutableLiveData.addSource(Repository.getPeople("joao")){r->
+                    _mutableLiveData.value = r
+                }
+            }
+        }
+    }
+
+    class Repository {
+        companion object {
+            suspend fun getPeople(name: String): LiveData<Resource<People>>{
+                val liveData = MutableLiveData<Resource<People>>()
+                liveData.postValue(Cloud.getPeople(name))
+                return liveData
+            }
+        }
+    }
+
+    class Cloud{
+        companion object{
+            suspend fun getPeople(name:String): Resource<People>? = withContext(Dispatchers.Default){
+                delay(5000)
+                var response:Resource<People>? = null
+                if(name == "joao"){
+                    response = Resource.Success(People("Joao", 13))
+                }else{
+                    response = Resource.Error("Não é o joao")
+                }
+                response
+            }
+        }
+    }
+}
